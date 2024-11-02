@@ -1,6 +1,6 @@
 import torch.nn.functional as F
 
-
+# Soft Cross Entropy loss function
 def sce_loss(x, y, alpha=3):
     x = F.normalize(x, p=2, dim=-1)
     y = F.normalize(y, p=2, dim=-1)

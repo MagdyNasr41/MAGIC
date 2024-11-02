@@ -1,6 +1,6 @@
 import argparse
 
-
+# Configurations to read the arguments in the main function
 def build_args():
     parser = argparse.ArgumentParser(description="MAGIC")
     parser.add_argument("--dataset", type=str, default="wget")

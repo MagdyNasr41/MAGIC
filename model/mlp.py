@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-
+# Very simple Multi-Layer Perceptron for Sample-Based Structure Reconstruction "edges between nodes"
 class MLP(nn.Module):
     def __init__(self, d_model, d_ff, dropout=0.1):
         super(MLP, self).__init__()
