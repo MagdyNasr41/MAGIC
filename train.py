@@ -36,10 +36,14 @@ def main(main_args):
         main_args.num_hidden = 256
         main_args.max_epoch = 5
         main_args.num_layers = 4
+    
+    # wget
     elif dataset_name == 'wget':
         main_args.num_hidden = 256
         main_args.max_epoch = 2
         main_args.num_layers = 4
+    
+    # Entity level (DARPA)
     else:
         main_args.num_hidden = 64
         main_args.max_epoch = 50
@@ -95,6 +99,8 @@ def main(main_args):
 
         # save the model
         torch.save(model.state_dict(), "./checkpoints/checkpoint-{}.pt".format(dataset_name))
+    
+    # Darpa datasets
     else:
         """
         metadata = 
@@ -107,35 +113,84 @@ def main(main_args):
         }
         """
 
+        # Load dataset's metadata
         metadata = load_metadata(dataset_name)
+
+        # Assign node and edge feature dimensions
         main_args.n_dim = metadata['node_feature_dim']
         main_args.e_dim = metadata['edge_feature_dim']
+
+        # Build the autoencoder model using parsed arguments
         model = build_model(main_args)
+        
+        # CPU or GPU assignment
         model = model.to(device)
+        
+        # Set the model in training mode
         model.train()
+
+        # Initialize the model optimizer
         optimizer = create_optimizer(main_args.optimizer, model, main_args.lr, main_args.weight_decay)
+        
+        # Epoch iterator
         epoch_iter = tqdm(range(main_args.max_epoch))
+
+        # Number of training samples
         n_train = metadata['n_train']
+
+        # For every epoch
         for epoch in epoch_iter:
+
+            # This will maintain the loss value
             epoch_loss = 0.0
+
+            # For each training sample
             for i in range(n_train):
+                
+                # Load graph (training sample)
                 g = load_entity_level_dataset(dataset_name, 'train', i).to(device)
+
+                # Set the model in training mode
                 model.train()
+
+                # Make a forward pass - get the graph error
                 loss = model(g)
+
+                # Take the mean value
                 loss /= n_train
+
+                # Reset optimizer
                 optimizer.zero_grad()
+
+                # Accummulate epoch loss
                 epoch_loss += loss.item()
+
+                # Make a backward pass
                 loss.backward()
+
+                # Commit the gradients
                 optimizer.step()
                 del g
+
+            # Report training epoch status
             epoch_iter.set_description(f"Epoch {epoch} | train_loss: {epoch_loss:.4f}")
+
+        # Save trained model's parameters asa checkpoint
         torch.save(model.state_dict(), "./checkpoints/checkpoint-{}.pt".format(dataset_name))
+
+        # Determine the file path for the dictionary of KNN distances
         save_dict_path = './eval_result/distance_save_{}.pkl'.format(dataset_name)
+
+        # If the dictionary exists already, it shall be removed. Remove.
         if os.path.exists(save_dict_path):
             os.unlink(save_dict_path)
     return
 
 
 if __name__ == '__main__':
+
+    # Parse the arguments from config.py
     args = build_args()
+
+    # Call main with args.
     main(args)
