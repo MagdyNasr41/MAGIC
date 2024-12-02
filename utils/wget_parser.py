@@ -10,7 +10,7 @@ from tqdm import tqdm
 import time
 import datetime
 
-
+# Valid node types
 valid_node_type = ['file', 'process_memory', 'task', 'mmaped_file', 'path', 'socket', 'address', 'link']
 CONSOLE_ARGUMENTS = None
 
@@ -19,9 +19,14 @@ def hashgen(l):
     """Generate a single hash value from a list. @l is a list of
     string values, which can be properties of a node/edge. This
     function returns a single hashed integer value."""
+
+    # Hash generator for a list of inputs
     hasher = xxhash.xxh64()
+
     for e in l:
         hasher.update(e)
+
+    # Make a single hash based on list elements
     return hasher.intdigest()
 
 
@@ -30,17 +35,27 @@ def parse_nodes(json_string, node_map):
     Parsed nodes populate @node_map, which is a dictionary that maps the node's UID,
     which is assigned by CamFlow to uniquely identify a node object, to a hashed
     value (in str) which represents the 'type' of the node. """
+    
     json_object = None
+
+    # Load json object
     try:
         # use "ignore" if non-decodeable exists in the @json_string
         json_object = json.loads(json_string)
+
     except Exception as e:
+        # Problem loading
         print("Exception ({}) occurred when parsing a node in JSON:".format(e))
         print(json_string)
         exit(1)
+    
+    # Activity nodes are present
     if "activity" in json_object:
         activity = json_object["activity"]
+
+        # For every node uid
         for uid in activity:
+            
             if not uid in node_map:  # only parse unseen nodes
                 if "prov:type" not in activity[uid]:
                     # a node must have a type.
@@ -48,16 +63,25 @@ def parse_nodes(json_string, node_map):
                     if CONSOLE_ARGUMENTS.verbose:
                         logging.debug("skipping a problematic activity node with no 'prov:type': {}".format(uid))
                 else:
+                    # Good new record. Make a node mapping from uid to this activity
                     node_map[uid] = activity[uid]["prov:type"]
 
+    # Entity nodes are present
     if "entity" in json_object:
         entity = json_object["entity"]
+
+        # For every node uid
         for uid in entity:
+
+            # Ignore if already seen
             if not uid in node_map:
+
+                # Ignore unknown type
                 if "prov:type" not in entity[uid]:
                     if CONSOLE_ARGUMENTS.verbose:
                         logging.debug("skipping a problematic entity node with no 'prov:type': {}".format(uid))
                 else:
+                    # Good new record. Make a node mapping from uid to this entity
                     node_map[uid] = entity[uid]["prov:type"]
 
 
@@ -67,11 +91,18 @@ def parse_all_nodes(filename, node_map):
     CamFlow nodes to their hashed attributes. """
     description = '\x1b[6;30;42m[STATUS]\x1b[0m Parsing nodes in CamFlow data from {}'.format(filename)
     pb = tqdm(desc=description, mininterval=1.0, unit=" recs")
+    
+    # Open file to read
     with open(filename, 'r') as f:
+
         # each line in CamFlow data could contain multiple
         # provenance nodes, we call @parse_nodes routine.
+
+        # Read file line by line
         for line in f:
             pb.update()  # for progress tracking
+
+            # Parse the nodes for this line
             parse_nodes(line, node_map)
     f.close()
     pb.close()
@@ -88,20 +119,36 @@ def parse_all_edges(inputfile, outputfile, node_map, noencode):
         <source_node_id> \t <destination_node_id> \t <hashed_source_type>:<hashed_destination_type>:<hashed_edge_type>:<edge_logical_timestamp>
     If -s is set, each line would look like:
         <source_node_id> \t <destination_node_id> \t <hashed_source_type>:<hashed_destination_type>:<hashed_edge_type>:<edge_logical_timestamp>:<timestamp_stats>"""
-    total_edges = 0
+    
+    total_edges = 0  # Edge counter
     smallest_timestamp = None
+
     # scan through the entire file to find the smallest timestamp from all the edges.
     # this step is only needed if we need to add some statistical information.
     if CONSOLE_ARGUMENTS.stats:
         description = '\x1b[6;30;42m[STATUS]\x1b[0m Scanning edges in CamFlow data from {}'.format(inputfile)
         pb = tqdm(desc=description, mininterval=1.0, unit=" recs")
+
+        # Open input file
         with open(inputfile, 'r') as f:
+
+            # For every line
             for line in f:
                 pb.update()
-                json_object = json.loads(line)
 
+                # Parse as json object, act based on the keys found in it
+                json_object = json.loads(line)
+                
+                # Having "used" key
                 if "used" in json_object:
                     used = json_object["used"]
+
+                    # ----------------------------------------------------------------------
+                    # *** Perform a set of steps in this "used" if block
+                    # The same steps will be replicated for the other analogous key blocks as well ***
+                    # ----------------------------------------------------------------------
+
+                    # For every uid, ensure relevant subkeys are there and 
                     for uid in used:
                         if "prov:type" not in used[uid]:
                             continue
@@ -111,19 +158,35 @@ def parse_all_edges(inputfile, outputfile, node_map, noencode):
                             continue
                         if "prov:activity" not in used[uid]:
                             continue
+
+                        # Get source and destination uuids
                         srcUUID = used[uid]["prov:entity"]
                         dstUUID = used[uid]["prov:activity"]
+
+                        # Skip if either one is not in the node map
                         if srcUUID not in node_map:
                             continue
                         if dstUUID not in node_map:
                             continue
+
+                        # Get timestamp as text
                         timestamp_str = used[uid]["cf:date"]
+
+                        # Make it a true timestamp
                         ts = time.mktime(datetime.datetime.strptime(timestamp_str, "%Y:%m:%dT%H:%M:%S").timetuple())
+
+                        # If it is minimum, note it down
                         if smallest_timestamp == None or ts < smallest_timestamp:
                             smallest_timestamp = ts
 
+                # Having "wasGeneratedBy" key
                 if "wasGeneratedBy" in json_object:
                     wasGeneratedBy = json_object["wasGeneratedBy"]
+
+                    # ----------------------------------------------------------------------
+                    # *** Perform the same tasks as the earlier "used" if block ***
+                    # ----------------------------------------------------------------------
+
                     for uid in wasGeneratedBy:
                         if "prov:type" not in wasGeneratedBy[uid]:
                             continue
@@ -133,20 +196,30 @@ def parse_all_edges(inputfile, outputfile, node_map, noencode):
                             continue
                         if "prov:activity" not in wasGeneratedBy[uid]:
                             continue
+
                         srcUUID = wasGeneratedBy[uid]["prov:activity"]
                         dstUUID = wasGeneratedBy[uid]["prov:entity"]
+
                         if srcUUID not in node_map:
                             continue
                         if dstUUID not in node_map:
                             continue
+
                         timestamp_str = wasGeneratedBy[uid]["cf:date"]
                         ts = time.mktime(datetime.datetime.strptime(timestamp_str, "%Y:%m:%dT%H:%M:%S").timetuple())
                         if smallest_timestamp == None or ts < smallest_timestamp:
                             smallest_timestamp = ts
 
+                # Having "wasInformedBy" key
                 if "wasInformedBy" in json_object:
                     wasInformedBy = json_object["wasInformedBy"]
+
+                    # ----------------------------------------------------------------------
+                    # *** Perform the same tasks as the earlier "used" if block ***
+                    # ----------------------------------------------------------------------
+
                     for uid in wasInformedBy:
+
                         if "prov:type" not in wasInformedBy[uid]:
                             continue
                         if "cf:date" not in wasInformedBy[uid]:
@@ -155,20 +228,31 @@ def parse_all_edges(inputfile, outputfile, node_map, noencode):
                             continue
                         if "prov:informed" not in wasInformedBy[uid]:
                             continue
+
                         srcUUID = wasInformedBy[uid]["prov:informant"]
                         dstUUID = wasInformedBy[uid]["prov:informed"]
+                        
                         if srcUUID not in node_map:
                             continue
                         if dstUUID not in node_map:
                             continue
+
                         timestamp_str = wasInformedBy[uid]["cf:date"]
                         ts = time.mktime(datetime.datetime.strptime(timestamp_str, "%Y:%m:%dT%H:%M:%S").timetuple())
+
                         if smallest_timestamp == None or ts < smallest_timestamp:
                             smallest_timestamp = ts
 
+                # Having "wasDerivedFrom" key
                 if "wasDerivedFrom" in json_object:
                     wasDerivedFrom = json_object["wasDerivedFrom"]
+
+                    # ----------------------------------------------------------------------
+                    # *** Perform the same tasks as the earlier "used" if block ***
+                    # ----------------------------------------------------------------------
+
                     for uid in wasDerivedFrom:
+
                         if "prov:type" not in wasDerivedFrom[uid]:
                             continue
                         if "cf:date" not in wasDerivedFrom[uid]:
@@ -177,20 +261,31 @@ def parse_all_edges(inputfile, outputfile, node_map, noencode):
                             continue
                         if "prov:generatedEntity" not in wasDerivedFrom[uid]:
                             continue
+
                         srcUUID = wasDerivedFrom[uid]["prov:usedEntity"]
                         dstUUID = wasDerivedFrom[uid]["prov:generatedEntity"]
+
                         if srcUUID not in node_map:
                             continue
                         if dstUUID not in node_map:
                             continue
+
                         timestamp_str = wasDerivedFrom[uid]["cf:date"]
                         ts = time.mktime(datetime.datetime.strptime(timestamp_str, "%Y:%m:%dT%H:%M:%S").timetuple())
+
                         if smallest_timestamp == None or ts < smallest_timestamp:
                             smallest_timestamp = ts
 
+                # Having "wasAssociatedWith" key
                 if "wasAssociatedWith" in json_object:
                     wasAssociatedWith = json_object["wasAssociatedWith"]
+
+                    # ----------------------------------------------------------------------
+                    # *** Perform the same tasks as the earlier "used" if block ***
+                    # ----------------------------------------------------------------------
+
                     for uid in wasAssociatedWith:
+
                         if "prov:type" not in wasAssociatedWith[uid]:
                             continue
                         if "cf:date" not in wasAssociatedWith[uid]:
@@ -199,14 +294,18 @@ def parse_all_edges(inputfile, outputfile, node_map, noencode):
                             continue
                         if "prov:activity" not in wasAssociatedWith[uid]:
                             continue
+
                         srcUUID = wasAssociatedWith[uid]["prov:agent"]
                         dstUUID = wasAssociatedWith[uid]["prov:activity"]
+
                         if srcUUID not in node_map:
                             continue
                         if dstUUID not in node_map:
                             continue
+
                         timestamp_str = wasAssociatedWith[uid]["cf:date"]
                         ts = time.mktime(datetime.datetime.strptime(timestamp_str, "%Y:%m:%dT%H:%M:%S").timetuple())
+
                         if smallest_timestamp == None or ts < smallest_timestamp:
                             smallest_timestamp = ts
         f.close()
@@ -216,101 +315,145 @@ def parse_all_edges(inputfile, outputfile, node_map, noencode):
     output = open(outputfile, "w+")
     description = '\x1b[6;30;42m[STATUS]\x1b[0m Parsing edges in CamFlow data from {}'.format(inputfile)
     pb = tqdm(desc=description, mininterval=1.0, unit=" recs")
+    
+    # Reopen the input file
     with open(inputfile, 'r') as f:
+
+        # For every line
         for line in f:
             pb.update()
+
+            # Read the json object from the line
             json_object = json.loads(line)
 
+            # Process the "used" key, if exists
             if "used" in json_object:
                 used = json_object["used"]
+
+                # ------------------------------------------------------------------------------------------------
+                # *** As before, in this "used" if block, the parser will perform a set of steps 
+                # that will be replicated for the other blocks later on ***
+                # ------------------------------------------------------------------------------------------------
+
+                # For every uid in used
                 for uid in used:
+
                     if "prov:type" not in used[uid]:
                         # an edge must have a type; if not,
                         # we will have to skip the edge. Log
                         # this issue if verbose is set.
+
                         if CONSOLE_ARGUMENTS.verbose:
                             logging.debug("edge (used) record without type: {}".format(uid))
                         continue
+
                     else:
-                        edgetype = "used"
+                        edgetype = "used" # edge type
+
                     # cf:id is used as logical timestamp to order edges
                     if "cf:id" not in used[uid]:
                         # an edge must have a logical timestamp;
                         # if not we will have to skip the edge.
                         # Log this issue if verbose is set.
+
                         if CONSOLE_ARGUMENTS.verbose:
                             logging.debug("edge (used) record without logical timestamp: {}".format(uid))
                         continue
+
                     else:
-                        timestamp = used[uid]["cf:id"]
+                        timestamp = used[uid]["cf:id"]  # time stamp
+
                     if "prov:entity" not in used[uid]:
                         # an edge's source node must exist;
                         # if not, we will have to skip the
                         # edge. Log this issue if verbose is set.
+
                         if CONSOLE_ARGUMENTS.verbose:
                             logging.debug(
                                 "edge (used/{}) record without source UUID: {}".format(used[uid]["prov:type"], uid))
                         continue
+
                     if "prov:activity" not in used[uid]:
                         # an edge's destination node must exist;
                         # if not, we will have to skip the edge.
                         # Log this issue if verbose is set.
+
                         if CONSOLE_ARGUMENTS.verbose:
                             logging.debug(
                                 "edge (used/{}) record without destination UUID: {}".format(used[uid]["prov:type"],
                                                                                             uid))
                         continue
-                    srcUUID = used[uid]["prov:entity"]
-                    dstUUID = used[uid]["prov:activity"]
+
+                    srcUUID = used[uid]["prov:entity"]  # source uuid
+                    dstUUID = used[uid]["prov:activity"] # destination uuid
+
                     # both source and destination node must
                     # exist in @node_map; if not, we will
                     # have to skip the edge. Log this issue
                     # if verbose is set.
+
                     if srcUUID not in node_map:
                         if CONSOLE_ARGUMENTS.verbose:
                             logging.debug(
                                 "edge (used/{}) record with an unseen srcUUID: {}".format(used[uid]["prov:type"], uid))
                         continue
+
                     else:
-                        srcVal = node_map[srcUUID]
+                        srcVal = node_map[srcUUID]  # source value
+
                     if dstUUID not in node_map:
                         if CONSOLE_ARGUMENTS.verbose:
                             logging.debug(
                                 "edge (used/{}) record with an unseen dstUUID: {}".format(used[uid]["prov:type"], uid))
                         continue
+
                     else:
-                        dstVal = node_map[dstUUID]
+                        dstVal = node_map[dstUUID]  # destination value
+
                     if "cf:date" not in used[uid]:
                         # an edge must have a timestamp; if
                         # not, we will have to skip the edge.
                         # Log this issue if verbose is set.
+
                         if CONSOLE_ARGUMENTS.verbose:
                             logging.debug("edge (used) record without timestamp: {}".format(uid))
                         continue
+                    
                     else:
                         # we only record @adjusted_ts if we need
                         # to record stats of CamFlow dataset.
+
                         if CONSOLE_ARGUMENTS.stats:
                             ts_str = used[uid]["cf:date"]
                             ts = time.mktime(datetime.datetime.strptime(ts_str, "%Y:%m:%dT%H:%M:%S").timetuple())
                             adjusted_ts = ts - smallest_timestamp
+
                     if "cf:jiffies" not in used[uid]:
                         # an edge must have a jiffies timestamp; if
                         # not, we will have to skip the edge.
                         # Log this issue if verbose is set.
+
                         if CONSOLE_ARGUMENTS.verbose:
                             logging.debug("edge (used) record without jiffies: {}".format(uid))
                         continue
+
                     else:
                         # we only record @jiffies if
                         # the option is set
+
                         if CONSOLE_ARGUMENTS.jiffies:
                             jiffies = used[uid]["cf:jiffies"]
-                    total_edges += 1
+
+                    total_edges += 1  # Increment the edge count
+
+                    # FINALLY - Write the edge info to output text file.
+
                     if noencode:
+
                         if CONSOLE_ARGUMENTS.stats:
                             output.write(
                                 "{}\t{}\t{}:{}:{}:{}:{}\n".format(srcUUID, dstUUID, srcVal, dstVal, edgetype, timestamp, adjusted_ts))
+                            
                         elif CONSOLE_ARGUMENTS.jiffies:
                             output.write(
                                 "{}\t{}\t{}:{}:{}:{}:{}\n".format(srcUUID, dstUUID, srcVal, dstVal, edgetype, timestamp,
@@ -318,11 +461,13 @@ def parse_all_edges(inputfile, outputfile, node_map, noencode):
                         else:
                             output.write(
                                 "{}\t{}\t{}:{}:{}:{}\n".format(srcUUID, dstUUID, srcVal, dstVal, edgetype, timestamp))
+                            
                     else:
                         if CONSOLE_ARGUMENTS.stats:
                             output.write(
                                 "{}\t{}\t{}:{}:{}:{}:{}\n".format(hashgen([srcUUID]), hashgen([dstUUID]), srcVal, dstVal, edgetype, timestamp,
                                                                   adjusted_ts))
+                            
                         elif CONSOLE_ARGUMENTS.jiffies:
                             output.write(
                                 "{}\t{}\t{}:{}:{}:{}:{}\n".format(hashgen([srcUUID]), hashgen([dstUUID]), srcVal, dstVal, edgetype, timestamp,
@@ -333,6 +478,11 @@ def parse_all_edges(inputfile, outputfile, node_map, noencode):
 
             if "wasGeneratedBy" in json_object:
                 wasGeneratedBy = json_object["wasGeneratedBy"]
+
+                # ------------------------------------------------------------------------------------------------
+                # *** For this "wasGeneratedBy" block, perform the same tasks as the earlier "used" if block ***
+                # ------------------------------------------------------------------------------------------------
+
                 for uid in wasGeneratedBy:
                     if "prov:type" not in wasGeneratedBy[uid]:
                         if CONSOLE_ARGUMENTS.verbose:
@@ -419,6 +569,11 @@ def parse_all_edges(inputfile, outputfile, node_map, noencode):
 
             if "wasInformedBy" in json_object:
                 wasInformedBy = json_object["wasInformedBy"]
+
+                # ------------------------------------------------------------------------------------------------
+                # *** For this "wasInformedBy" block, perform the same tasks as the earlier "used" if block ***
+                # ------------------------------------------------------------------------------------------------
+
                 for uid in wasInformedBy:
                     if "prov:type" not in wasInformedBy[uid]:
                         if CONSOLE_ARGUMENTS.verbose:
@@ -505,6 +660,11 @@ def parse_all_edges(inputfile, outputfile, node_map, noencode):
 
             if "wasDerivedFrom" in json_object:
                 wasDerivedFrom = json_object["wasDerivedFrom"]
+
+                # ------------------------------------------------------------------------------------------------
+                # *** For this "wasDerivedFrom" block, perform the same tasks as the earlier "used" if block ***
+                # ------------------------------------------------------------------------------------------------
+
                 for uid in wasDerivedFrom:
                     if "prov:type" not in wasDerivedFrom[uid]:
                         if CONSOLE_ARGUMENTS.verbose:
@@ -591,6 +751,11 @@ def parse_all_edges(inputfile, outputfile, node_map, noencode):
 
             if "wasAssociatedWith" in json_object:
                 wasAssociatedWith = json_object["wasAssociatedWith"]
+
+                # ------------------------------------------------------------------------------------------------
+                # *** For this "wasAssociatedWith" block, perform the same tasks as the earlier "used" if block ***
+                # ------------------------------------------------------------------------------------------------
+
                 for uid in wasAssociatedWith:
                     if "prov:type" not in wasAssociatedWith[uid]:
                         if CONSOLE_ARGUMENTS.verbose:
@@ -677,15 +842,25 @@ def parse_all_edges(inputfile, outputfile, node_map, noencode):
     f.close()
     output.close()
     pb.close()
+
+    # Return the total edge count
     return total_edges
 
 def read_single_graph(file_name, threshold):
+
+    # Graph, as a list, and edge counter
     graph = []
     edge_cnt = 0
+
+    # Open file to read
     with open(file_name, 'r') as f:
+
+        # For every line
         for line in f:
             try:
-                edge = line.strip().split("\t")
+                
+                # Read edge info from line
+                edge = line.strip().split("\t")  # Tokenize
                 new_edge = [edge[0], edge[1]]
                 attributes = edge[2].strip().split(":")
                 source_node_type = attributes[0]
@@ -693,16 +868,23 @@ def read_single_graph(file_name, threshold):
                 edge_type = attributes[2]
                 edge_order = attributes[3]
 
+                # Add the new edge
                 new_edge.append(source_node_type)
                 new_edge.append(destination_node_type)
                 new_edge.append(edge_type)
                 new_edge.append(edge_order)
                 graph.append(new_edge)
-                edge_cnt += 1
+
+                edge_cnt += 1  # Increment counter
+                
             except:
                 print("{}".format(line))
     f.close()
+
+    # Sort the graph (based on edge order)
     graph.sort(key=lambda e: e[5])
+
+    # Return the graph as list of edges. Limit edge count by threshold
     if len(graph) <= threshold:
         return graph
     else:
@@ -710,24 +892,45 @@ def read_single_graph(file_name, threshold):
 
 
 def process_graph(name, threshold):
+
+    # Read the graph
     graph = read_single_graph(name, threshold)
+
+    # Start a new result graph
     result_graph = nx.DiGraph()
     cnt = 0
+
+    # For every edge in graph
     for num, edge in enumerate(graph):
-        cnt += 1
+
+        cnt += 1  # Increment counter
+
+        # Extract the fields of interest
         src, dst, src_type, dst_type, edge_type = edge[:5]
+
+        # Given that the source, destination node types are valid
         if src_type in valid_node_type and dst_type in valid_node_type:
+
+            # Add source node to result graph (if not done before)
             if not result_graph.has_node(src):
                 result_graph.add_node(src, type=src_type)
+
+            # Add destination node to result graph (if not done before)
             if not result_graph.has_node(dst):
                 result_graph.add_node(dst, type=dst_type)
+
+            # Add edge to graph (if not done before)
             if not result_graph.has_edge(src, dst):
                 result_graph.add_edge(src, dst, type=edge_type)
+
+                # For bidrectional graph, also add the reversed edge
                 if bidirection:
                     result_graph.add_edge(dst, src, type='reverse_{}'.format(edge_type))
+
+    # Return the edge count and the resulting graph
     return cnt, result_graph
 
-
+# Global data to be used by the format_graph function below
 node_type_list = []
 edge_type_list = []
 node_type_dict = {}
@@ -735,40 +938,64 @@ edge_type_dict = {}
 
 
 def format_graph(g, name):
+
+    # Make a new directional graph
     new_g = nx.DiGraph()
     node_map = {}
     node_cnt = 0
+
+    # For every node in g, add it to new graph
     for n in g.nodes:
         node_map[n] = node_cnt
         new_g.add_node(node_cnt, type=g.nodes[n]['type'])
         node_cnt += 1
+
+    # For every edge in g, add it to new graph
     for e in g.edges:
         new_g.add_edge(node_map[e[0]], node_map[e[1]], type=g.edges[e]['type'])
+
+    # For every node in the new graph
     for n in new_g.nodes:
         node_type = new_g.nodes[n]['type']
+
+        # Create or increment its respective node_type counter in the dict.
         if not node_type in node_type_dict:
             node_type_list.append(node_type)
             node_type_dict[node_type] = 1
         else:
             node_type_dict[node_type] += 1
+
+    # For every edge in the new graph
     for e in new_g.edges:
         edge_type = new_g.edges[e]['type']
+
+        # Create or increment its respective edge_type counter in the dict.
         if not edge_type in edge_type_dict:
             edge_type_list.append(edge_type)
             edge_type_dict[edge_type] = 1
         else:
             edge_type_dict[edge_type] += 1
+
+    # Bind the node types to their value in node_type_list
     for n in new_g.nodes:
         new_g.nodes[n]['type'] = node_type_list.index(new_g.nodes[n]['type'])
+
+    # Bind the edge types to their value in edge_type_list
     for e in new_g.edges:
         new_g.edges[e]['type'] = edge_type_list.index(new_g.edges[e]['type'])
+
+    # Write the new graph to json file
     with open('{}.json'.format(name), 'w', encoding='utf-8') as f:
         json.dump(nx.node_link_data(new_g), f)
 
 
 if __name__ == "__main__":
+
+    # Parse arguments
     parser = argparse.ArgumentParser(description='Convert CamFlow JSON to Unicorn edgelist')
     args = parser.parse_args()
+    
+    # Argument setup
     args.stats = False
     args.verbose = False
     args.jiffies = False
@@ -776,34 +1003,58 @@ if __name__ == "__main__":
     args.output = '../data/wget/processed/'
     args.final_output = '../data/wget/final/'
     args.noencode = False
+
+    # Ensure the existance of the input/output directories
     if not os.path.exists(args.input):
         os.mkdir(args.input)
+
     if not os.path.exists(args.output):
         os.mkdir(args.output)
+
     if not os.path.exists(args.final_output):
         os.mkdir(args.final_output)
+
     CONSOLE_ARGUMENTS = args
 
+    # Setup logging
     if args.verbose:
         logging.basicConfig(filename=args.log, level=logging.DEBUG)
+
     cnt = 0
     fname_list = []
+
+    # In the paper, they use 150 batches of logs (log files)
     for i in range(150):
+
+        # Attack logs
         if i < 25:
             fname_list.append('wget-baseline-attack-' + str(i) + '.log')
+        
+        # Benign logs
         else:
             fname_list.append('wget-normal-' + str(i - 25) + '.log')
+
+    # For every log file to be considered
     for fname in fname_list:
+
         cnt += 1
         node_map = dict()
+
+        # Parse the nodes, update node_map
         parse_all_nodes(args.input + '/{}'.format(fname), node_map)
+
+        # Parse the edges, write to output file
         total_edges = parse_all_edges(args.input + '/{}'.format(fname), args.output + '/{}.log'.format(cnt), node_map,
                                       args.noencode)
+        
+        # Optional - write stats to file
         if args.stats:
+
             total_nodes = len(node_map)
             stats = open(args.stats_file + '/{}.log'.format(cnt), "a+")
             stats.write("{},{},{}\n".format(args.input + '/{}'.format(fname), total_nodes, total_edges))
 
+    # A set of parameters to be used by this module's functions
     bidirection = False
     threshold = 10000000 # infinity
     interaction_dict = []
@@ -813,11 +1064,18 @@ if __name__ == "__main__":
     base = args.final_output
 
     line_cnt = 0
+
+    # For every batch log file
     for i in tqdm(range(cnt)):
+
+        # Process graph for the log file with corresponding id
         single_cnt, result_graph = process_graph('{}{}.log'.format(input, i + 1), threshold)
+
+        # Format graph
         format_graph(result_graph, '{}{}'.format(base, i))
         line_cnt += single_cnt
 
+    # Print graph details
     print(line_cnt // 150)
     print(len(node_type_list))
     print(node_type_dict)
