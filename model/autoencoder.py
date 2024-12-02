@@ -204,8 +204,10 @@ class GMAEModel(nn.Module):
 
     @property
     def enc_params(self):
+        # Get encoder parameters
         return self.encoder.parameters()
 
     @property
     def dec_params(self):
+        # Get decoder parameters
         return chain(*[self.encoder_to_decoder.parameters(), self.decoder.parameters()])

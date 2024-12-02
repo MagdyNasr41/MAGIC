@@ -8,6 +8,8 @@ from utils.loaddata import transform_graph
 BIG QUESTION: WHAT DOES THE DATASSET LOOK LIKE
 """
 def batch_level_train(model, graphs, train_loader, optimizer, max_epoch, device, n_dim=0, e_dim=0):
+
+    # Get an epoch iterator for the maximum number of epochs
     epoch_iter = tqdm(range(max_epoch))
 
     # Loop over each epoch
@@ -26,7 +28,7 @@ def batch_level_train(model, graphs, train_loader, optimizer, max_epoch, device,
             # Combine the list of individual graphs into a single batched graph
             batch_g = dgl.batch(batch_g)
 
-            # unknown functionality to me
+            # Sets the model to training mode
             model.train()
 
             # Perform a forward pass through the model with the batched graph

@@ -164,6 +164,7 @@ def evaluate_batch_level_using_knn(repeat, dataset, embeddings, labels):
             tn_list.append(tn)
             auc_list.append(auc)
 
+        # Print the performance metrics
         print('AUC: {}+{}'.format(np.mean(auc_list), np.std(auc_list)))
         print('F1: {}+{}'.format(np.mean(f1_list), np.std(f1_list)))
         print('PRECISION: {}+{}'.format(np.mean(prec_list), np.std(prec_list)))
@@ -193,6 +194,7 @@ def evaluate_batch_level_using_knn(repeat, dataset, embeddings, labels):
         mean_distance = distances.mean() * n_neighbors / (n_neighbors - 1)
         distances, indexes = nbrs.kneighbors(x_test, n_neighbors=n_neighbors)
 
+        # Calculate the performance metrics
         score = distances.mean(axis=1) / mean_distance
         auc = roc_auc_score(y_test, score)
         prec, rec, threshold = precision_recall_curve(y_test, score)
@@ -204,6 +206,8 @@ def evaluate_batch_level_using_knn(repeat, dataset, embeddings, labels):
         fn = 0
         tp = 0
         fp = 0
+
+        # Count the TP, TN, FP, FN values
         for i in range(len(y_test)):
             if y_test[i] == 1.0 and score[i] >= best_thres:
                 tp += 1
@@ -213,6 +217,8 @@ def evaluate_batch_level_using_knn(repeat, dataset, embeddings, labels):
                 tn += 1
             if y_test[i] == 0.0 and score[i] >= best_thres:
                 fp += 1
+        
+        # Print the metrics
         print('AUC: {}'.format(auc))
         print('F1: {}'.format(f1[best_idx]))
         print('PRECISION: {}'.format(prec[best_idx]))
@@ -292,6 +298,8 @@ def evaluate_entity_level_using_knn(dataset, x_train, x_test, y_test):
     fn = 0
     tp = 0
     fp = 0
+
+    # Count the TP, TN, FP, FN values
     for i in range(len(y_test)):
         if y_test[i] == 1.0 and score[i] >= best_thres:
             tp += 1
@@ -301,6 +309,8 @@ def evaluate_entity_level_using_knn(dataset, x_train, x_test, y_test):
             tn += 1
         if y_test[i] == 0.0 and score[i] >= best_thres:
             fp += 1
+    
+    # Print the metrics
     print('AUC: {}'.format(auc))
     print('F1: {}'.format(f1[best_idx]))
     print('PRECISION: {}'.format(prec[best_idx]))

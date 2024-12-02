@@ -10,4 +10,5 @@ class MLP(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
+        # Execute a forward pass
         return self.w_2(self.dropout(F.relu(self.w_1(x))))

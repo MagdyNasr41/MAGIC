@@ -102,20 +102,24 @@ class GAT(nn.Module):
 
 class GATConv(nn.Module):
     def __init__(self,
-                 in_dim,
-                 e_dim,
-                 out_dim,
-                 n_heads,
-                 feat_drop=0.0,
-                 attn_drop=0.0,
-                 negative_slope=0.2,
-                 residual=False,
-                 activation=None,
-                 allow_zero_in_degree=False,
-                 bias=True,
-                 norm=None,
-                 concat_out=True):
+                 in_dim,                         # Input node feature size
+                 e_dim,                          # Edge feature size
+                 out_dim,                        # Ouput node feature size
+                 n_heads,                        # Number of heads
+                 feat_drop=0.0,                  # No feature dropout
+                 attn_drop=0.0,                  # No attention dropout
+                 negative_slope=0.2,             # Slope for leaky relu
+                 residual=False,                 # No residual connections
+                 activation=None,                # No default activation
+                 allow_zero_in_degree=False,     # Raise error if there is 0-in-degree nodes
+                 bias=True,                      # Biases will be used
+                 norm=None,                      # No normalization is done
+                 concat_out=True):               # If true, the result will be flattened
+        
+        # Call parent constructor
         super(GATConv, self).__init__()
+
+        # Assign the properties
         self.n_heads = n_heads
         self.src_feat, self.dst_feat = expand_as_pair(in_dim)
         self.edge_feat = e_dim
