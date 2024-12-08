@@ -4,13 +4,6 @@
 ## Project Overview
 This project implements a framework for detecting Advanced Persistent Threats (APTs) using Masked Graph Representation Learning. The solution uses various datasets, including CADETS, THEIA, and TRACE, and supports data preprocessing, training, and evaluation using state-of-the-art machine learning techniques. 
 
-### Authors
-- Zian Jia, Yun Xiong, Yuhong Nan, Yao Zhang, Jinjing Zhao, Mi Wen  
-- **Students:** The Best Cenker, The Wonderful Devon, and Magdy Nasr  
-- **Course:** COMP 7860  
-- **Instructor:** Prof. Azadeh Tabiban  
-- **Date:** December 9, 2024  
-
 ---
 
 ## Code Modules
@@ -129,6 +122,13 @@ Then execute `eval.py` the same as in standard evaluation:
   python eval.py --dataset *your_dataset*
 ```
 For more running options, please refer to `utils/config.py`
+
+- **Authors** Zian Jia, Yun Xiong, Yuhong Nan, Yao Zhang, Jinjing Zhao, Mi Wen  
+- **Students:** Cenker Sengoz, Devon Blewett, and Magdy Nasr  
+- **Course:** COMP 7860  
+- **Instructor:** Prof. Azadeh Tabiban  
+- **Date:** December 9, 2024  
+
 
 ## References
 1. Zian Jia, et al. "MAGIC: Detecting Advanced Persistent Threats via Masked Graph Representation Learning." USENIX Security 2024. [Paper Link](https://www.usenix.org/conference/usenixsecurity24/presentation/jia-zian)
