@@ -95,6 +95,11 @@ It consists of the following files:
 - utils.py: It provides utility functions and modules to support neural network training and optimization, with a focus on flexibility and modularity for tasks such as selecting optimizers, activations, normalization layers, and managing random seeds.
 ---
 
+## Sequence Diagrams
+Loading data:
+![sequenceload drawio (1)](https://github.com/user-attachments/assets/eda6c196-fdbb-4107-bc7d-bf1355d46df7)
+
+
 ## Run
 
 This is a guildline on reproducing MAGIC's evaluations. There are three options: **Quick Evaluation**, **Standard Evaluation** and **Training from Scratch**.
