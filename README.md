@@ -97,6 +97,7 @@ It consists of the following files:
 
 ## Sequence Diagrams
 Loading data:
+
 ![sequenceload drawio (1)](https://github.com/user-attachments/assets/eda6c196-fdbb-4107-bc7d-bf1355d46df7)
 
 
